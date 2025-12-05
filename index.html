@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공문 생성기</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Noto Sans KR', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    h1 { text-align: center; color: #333; }
+    .section { background: white; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .section h3 { margin-top: 0; border-bottom: 2px solid #007bff; padding-bottom: 8px; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    textarea { resize: vertical; min-height: 80px; }
+    .row { display: flex; gap: 15px; }
+    .row > div { flex: 1; }
+    .dynamic-list { margin: 10px 0; }
+    .dynamic-item { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+    .dynamic-item input, .dynamic-item textarea { flex: 1; }
+    .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-add { background: #28a745; color: white; }
+    .btn-remove { background: #dc3545; color: white; padding: 10px 15px; }
+    .btn-generate { background: #007bff; color: white; font-size: 18px; padding: 15px 40px; display: block; margin: 20px auto; }
+    .btn-generate:disabled { background: #999; cursor: not-allowed; }
+    .btn:hover { opacity: 0.9; }
+    .rep-item { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 10px; }
+    .rep-item .row { margin-bottom: 10px; }
+    .file-input { padding: 8px; }
+  </style>
+</head>
+<body>
+  <h1>공문 생성기</h1>
+
+  <div class="section">
+    <h3>기본 정보</h3>
+    <div class="row">
+      <div><label>수신</label><input type="text" id="receiver" placeholder="중소기업기술정보진흥원"></div>
+      <div><label>문서번호</label><input type="text" id="docNumber" placeholder="AICU-20251204-001"></div>
+    </div>
+    <div class="row">
+      <div><label>날짜</label><input type="date" id="docDate"></div>
+    </div>
+    <label>제목</label>
+    <input type="text" id="title" placeholder="팁스R&D 연구개발비 사용계획 협약 변경">
+  </div>
+
+  <div class="section">
+    <h3>본문 항목</h3>
+    <p style="color:#666; margin:0 0 10px;">1. 귀 기관의 무궁한 발전을 기원합니다. (자동 포함)</p>
+    <div id="itemsList" class="dynamic-list"></div>
+    <button class="btn btn-add" onclick="addItem()">+ 항목 추가</button>
+  </div>
+
+  <div class="section">
+    <h3>붙임 (첨부서류)</h3>
+    <div id="attachmentsList" class="dynamic-list"></div>
+    <button class="btn btn-add" onclick="addAttachment()">+ 붙임 추가</button>
+  </div>
+
+  <div class="section">
+    <h3>발신 기관</h3>
+    <label>기관 직인 이미지</label>
+    <input type="file" id="stampFile" accept="image/*" class="file-input">
+    <label>담당자</label>
+    <input type="text" id="personInCharge" placeholder="강 연 길">
+  </div>
+
+  <div class="section">
+    <h3>대표자</h3>
+    <div id="repsList" class="dynamic-list"></div>
+    <button class="btn btn-add" onclick="addRep()">+ 대표자 추가</button>
+  </div>
+
+  <div class="section">
+    <h3>연락처</h3>
+    <div class="row">
+      <div><label>우편번호</label><input type="text" id="postCode" placeholder="42250"></div>
+      <div><label>전화번호</label><input type="text" id="phone" placeholder="070-8860-8188"></div>
+    </div>
+    <label>주소</label>
+    <input type="text" id="address" placeholder="대구광역시 수성구 알파시티1로42길 11, 520호">
+    <label>이메일</label>
+    <input type="email" id="email" placeholder="aicu.contact@aicu.life">
+  </div>
+
+  <button class="btn btn-generate" onclick="generateTex()">PDF 생성</button>
+
+  <script>
+    // Set default date to today
+    document.getElementById('docDate').valueAsDate = new Date();
+
+    function addItem() {
+      const list = document.getElementById('itemsList');
+      const idx = list.children.length + 2;
+      const div = document.createElement('div');
+      div.className = 'dynamic-item';
+      div.innerHTML = `<span>${idx}.</span><textarea placeholder="항목 내용"></textarea><button class="btn btn-remove" onclick="removeItem(this)">×</button>`;
+      list.appendChild(div);
+      updateItemNumbers();
+    }
+
+    function removeItem(btn) {
+      btn.parentElement.remove();
+      updateItemNumbers();
+    }
+
+    function updateItemNumbers() {
+      document.querySelectorAll('#itemsList .dynamic-item').forEach((item, i) => {
+        item.querySelector('span').textContent = (i + 2) + '.';
+      });
+    }
+
+    function addAttachment() {
+      const list = document.getElementById('attachmentsList');
+      const div = document.createElement('div');
+      div.className = 'dynamic-item';
+      div.innerHTML = `<input type="text" placeholder="변경 사유서 1부"><button class="btn btn-remove" onclick="this.parentElement.remove()">×</button>`;
+      list.appendChild(div);
+    }
+
+    function addRep() {
+      const list = document.getElementById('repsList');
+      const div = document.createElement('div');
+      div.className = 'rep-item';
+      div.innerHTML = `
+        <div class="row">
+          <div><label>대표자명</label><input type="text" class="rep-name" placeholder="홍 길 동"></div>
+          <div><label>직인 이미지 (선택)</label><input type="file" class="rep-stamp" accept="image/*"></div>
+        </div>
+        <button class="btn btn-remove" onclick="this.parentElement.remove()">삭제</button>
+      `;
+      list.appendChild(div);
+    }
+
+    function escapeLatex(str) {
+      return str.replace(/\\/g, '\\textbackslash{}')
+                .replace(/&/g, '\\&')
+                .replace(/%/g, '\\%')
+                .replace(/\$/g, '\\$')
+                .replace(/#/g, '\\#')
+                .replace(/_/g, '\\_')
+                .replace(/\{/g, '\\{')
+                .replace(/\}/g, '\\}')
+                .replace(/~/g, '\\textasciitilde{}')
+                .replace(/\^/g, '\\textasciicircum{}');
+    }
+
+    function formatName(name) {
+      const isHangul = /^[\uAC00-\uD7AF\s]+$/.test(name.trim());
+      const escaped = escapeLatex(name.trim().replace(/\s+/g, ''));
+      return isHangul ? escaped.split('').join(' ') : escapeLatex(name);
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve) => {
+        if (!file) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function generateTex() {
+      const receiver = escapeLatex(document.getElementById('receiver').value || '');
+      const docNumber = escapeLatex(document.getElementById('docNumber').value || '');
+      const docDate = document.getElementById('docDate').value;
+      const title = escapeLatex(document.getElementById('title').value || '');
+      const personInCharge = escapeLatex(document.getElementById('personInCharge').value || '');
+      const postCode = escapeLatex(document.getElementById('postCode').value || '');
+      const phone = escapeLatex(document.getElementById('phone').value || '');
+      const address = escapeLatex(document.getElementById('address').value || '');
+      const email = escapeLatex(document.getElementById('email').value || '');
+
+      // Read stamp file
+      const stampInput = document.getElementById('stampFile');
+      const stampBase64 = await fileToBase64(stampInput.files[0]);
+      const images = {};
+      if (stampBase64) images['stamp.png'] = stampBase64;
+
+      // Format date
+      const [year, month, day] = docDate.split('-');
+      const formattedDate = `${year}. ${parseInt(month)}. ${parseInt(day)}.`;
+
+      // Items
+      let itemsLatex = '    \\item 귀 기관의 무궁한 발전을 기원합니다.\n';
+      document.querySelectorAll('#itemsList textarea').forEach(ta => {
+        if (ta.value.trim()) {
+          itemsLatex += `    \n    \\item ${escapeLatex(ta.value.trim())}\n`;
+        }
+      });
+
+      // Attachments
+      let attachmentsLatex = '';
+      const attachments = [...document.querySelectorAll('#attachmentsList input')].map(i => i.value.trim()).filter(v => v);
+      if (attachments.length > 0) {
+        attachmentsLatex = `붙\\quad 임 : \\quad ${escapeLatex(attachments[0])} \\\\`;
+        for (let i = 1; i < attachments.length; i++) {
+          const isLast = i === attachments.length - 1;
+          attachmentsLatex += `\n\\hspace*{1.8cm} ${escapeLatex(attachments[i])}${isLast ? ' \\quad 끝.' : ''} \\\\`;
+        }
+        if (attachments.length === 1) {
+          attachmentsLatex = attachmentsLatex.replace(' \\\\', ' \\quad 끝. \\\\');
+        }
+      }
+
+      // Representatives
+      const repItems = [...document.querySelectorAll('#repsList .rep-item')];
+      const reps = [];
+      for (let i = 0; i < repItems.length; i++) {
+        const item = repItems[i];
+        const name = item.querySelector('.rep-name').value.trim();
+        if (!name) continue;
+        const stampFile = item.querySelector('.rep-stamp').files[0];
+        const stampKey = stampFile ? `rep_stamp_${i}.png` : null;
+        if (stampFile) images[stampKey] = await fileToBase64(stampFile);
+        reps.push({ name, stamp: stampKey });
+      }
+
+      // Rep stamps - overlay on (인)
+      let repStampsLatex = '';
+      const repsWithStamps = reps.filter(r => r.stamp);
+      if (repsWithStamps.length > 0) {
+        repStampsLatex = repsWithStamps.map((r, i) => 
+          `\\llap{\\includegraphics[width=2cm]{${r.stamp}}\\hspace{${0.5 + i * 2.2}cm}}`
+        ).join('');
+      }
+
+      let repsLatex = '';
+      if (reps.length === 1) {
+        repsLatex = `\\textbf{대표자} \\quad \\underline{${formatName(reps[0].name)} \\hspace{3cm}} ${repStampsLatex}(인)`;
+      } else if (reps.length > 1) {
+        const repNames = reps.map(r => formatName(r.name)).join(', \\quad');
+        repsLatex = `\\textbf{대표자} \\quad \\underline{${repNames} \\hspace{3cm}} ${repStampsLatex}(인)`;
+      }
+
+      const tex = `\\documentclass[a4paper,11pt]{article}
+
+% 필수 패키지 설정
+\\usepackage{kotex}
+\\usepackage[left=20mm,right=20mm,top=30mm,bottom=20mm]{geometry}
+\\usepackage{graphicx}
+\\usepackage{array}
+\\usepackage{tabularx}
+\\usepackage{setspace}
+\\usepackage{hhline}
+\\usepackage{anyfontsize}
+
+\\setlength{\\parindent}{0pt}
+\\setlength{\\parskip}{1em}
+
+\\begin{document}
+
+\\begin{center}
+    \\fontsize{35}{35}\\selectfont \\textbf{공\\quad 문}
+\\end{center}
+
+\\vspace{1cm}
+
+\\begin{tabular}{|l|}
+    \\hline
+    \\textbf{수신 : ${receiver}} \\\\
+    \\hline
+\\end{tabular}
+
+\\vspace{1cm}
+
+\\hrule height 1.5pt
+\\vspace{0.3cm}
+
+\\textbf{제 목 : ${title}}
+
+\\vspace{0.2cm}
+\\hrule height 0.5pt
+\\vspace{0.5cm}
+
+\\begin{enumerate}
+${itemsLatex}\\end{enumerate}
+
+\\vspace{1cm}
+
+${attachmentsLatex}
+
+\\vspace{2cm}
+
+\\begin{center}
+    \\includegraphics[width=3.5cm]{stamp.png}
+\\end{center}
+
+\\vfill
+
+\\hrule height 1.5pt
+\\vspace{0.1cm}
+
+\\begin{tabularx}{\\textwidth}{@{}X r@{}}
+    \\textbf{담당} \\quad ${personInCharge} & ${repsLatex} \\\\
+\\end{tabularx}
+
+\\hrule height 0.5pt
+\\vspace{0.1cm}
+
+\\begin{tabularx}{\\textwidth}{@{}l X l X@{}}
+    \\textbf{시행} & ${docNumber} & ( ${formattedDate} ) \\textbf{접수} & ( \\hspace{2cm} ) \\\\
+\\end{tabularx}
+
+\\fontsize{9}{11}\\selectfont
+\\begin{tabularx}{\\textwidth}{@{}l X@{}}
+    \\textbf{우} & ${postCode} \\quad ${address} \\\\
+    \\textbf{전화} & \\underline{${phone} \\hspace{4cm}} / \\textbf{이메일} \\underline{${email}\\hspace{4cm}}
+\\end{tabularx}
+
+\\end{document}`;
+
+      // Generate PDF via server
+      const filename = `gongmun_${docDate}.pdf`;
+      const btn = document.querySelector('.btn-generate');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '생성 중...';
+      try {
+        const resp = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tex, filename, images })
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error || 'PDF 생성 실패');
+        }
+        const blob = await resp.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      } catch (err) {
+        alert('PDF 생성 오류: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    // Add initial items
+    addItem();
+    addRep();
+  </script>
+</body>
+</html>
